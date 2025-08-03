@@ -11,6 +11,8 @@ requests = "*"
 jupyter = "*"
 pandas = "*"
 tqdm = "*"
+openaq = "*"
+python-dotenv = "*"
 
 [dev-packages]
 pytest = "*"

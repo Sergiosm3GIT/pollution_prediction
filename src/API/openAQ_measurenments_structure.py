@@ -1,0 +1,22 @@
+def flatten_measurement(measurement):
+    return {
+        "value": measurement["value"],
+        "parameter_name": measurement["parameter"]["name"],
+        "parameter_units": measurement["parameter"]["units"],
+        "period_label": measurement["period"]["label"],
+        "period_interval": measurement["period"]["interval"],
+        "datetime_from_utc": measurement["period"]["datetimeFrom"]["utc"],
+        "datetime_from_local": measurement["period"]["datetimeFrom"]["local"],
+        "datetime_to_utc": measurement["period"]["datetimeTo"]["utc"],
+        "datetime_to_local": measurement["period"]["datetimeTo"]["local"],
+        "coverage_expectedCount": measurement["coverage"]["expectedCount"],
+        "coverage_expectedInterval": measurement["coverage"]["expectedInterval"],
+        "coverage_observedCount": measurement["coverage"]["observedCount"],
+        "coverage_observedInterval": measurement["coverage"]["observedInterval"],
+        "coverage_percentComplete": measurement["coverage"]["percentComplete"],
+        "coverage_percentCoverage": measurement["coverage"]["percentCoverage"],
+        "coverage_datetime_from_utc": measurement["coverage"]["datetimeFrom"]["utc"],
+        "coverage_datetime_from_local": measurement["coverage"]["datetimeFrom"]["local"],
+        "coverage_datetime_to_utc": measurement["coverage"]["datetimeTo"]["utc"],
+        "coverage_datetime_to_local": measurement["coverage"]["datetimeTo"]["local"]
+    }
