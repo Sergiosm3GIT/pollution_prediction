@@ -24,11 +24,14 @@ for i, sensor in enumerate(sensor_data["sensors"]):
     print(f"\nProcessing sensor {i+1}/{len(sensor['sensors'])}: {sensor.get('name', 'Unnamed')}")
     for p in sensor['sensors']:
         print(p.get('name', 'Unnamed'))
+        print(p.get('parameter', {}))
 
+sensor_data["sensors"]
 
 sensor_id = 1044
 API_MEASUREMENTS_URL = f"{URL_BASE}/sensors/{sensor_id}/measurements"
 print(API_MEASUREMENTS_URL)
+
 
 headers = {
     "Accept": "application/json",
@@ -53,5 +56,5 @@ with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
 
 flattened = [flatten_measurement(m) for m in data["results"]]
 df = pd.DataFrame(flattened)
-df.to_csv("pollution-prediction/data/raw/sensors_measurements.csv", index=False)
+df.to_csv("pollution-prediction/data/raw/sensors_measurements_test.csv", index=False)
 print(df.head())

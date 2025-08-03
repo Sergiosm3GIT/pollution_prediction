@@ -1,0 +1,41 @@
+# Welcome to your prefect.yaml file! You can use this file for storing and managing
+# configuration for deploying your flows. We recommend committing this file to source
+# control along with your flow code.
+
+# Generic metadata about this project
+name: pollution-prediction
+prefect-version: 3.4.11
+
+# build section allows you to manage and build docker images
+build: null
+
+# push section allows you to manage if and how this project is uploaded to remote locations
+push: null
+
+# pull section allows you to provide instructions for cloning this project in remote locations
+pull:
+- prefect.deployments.steps.git_clone:
+    repository: https://github.com/Sergiosm3GIT/pollution_prediction.git
+    branch: main
+    access_token: null
+
+# the deployments section allows you to provide configuration for deploying flows
+deployments:
+- name: DatosOpenAQ
+  version: null
+  tags: []
+  concurrency_limit: null
+  description: null
+  entrypoint: src.data_extraction.data_openAQ:DataExtractionFlow
+  parameters:
+    start_date: "2025-01-01T00:00:00Z"  
+    end_date: "2025-02-01T00:00:00Z" 
+  work_pool:
+    name: mlops-project-worker
+    work_queue_name: null
+    job_variables: {}
+  schedules:
+  - interval: 86400.0
+    anchor_date: '2025-08-03T17:54:34.730968+00:00'
+    timezone: UTC
+    active: false

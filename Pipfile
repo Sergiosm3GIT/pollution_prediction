@@ -13,6 +13,8 @@ pandas = "*"
 tqdm = "*"
 openaq = "*"
 python-dotenv = "*"
+prefect = "*"
+pyarrow = "*"
 
 [dev-packages]
 pytest = "*"

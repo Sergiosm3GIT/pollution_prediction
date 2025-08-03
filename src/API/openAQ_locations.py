@@ -6,11 +6,13 @@ from pathlib import Path
 from openaq import OpenAQ
 from datetime import datetime
 from dotenv import load_dotenv
+from prefect import flow, task
 
 load_dotenv()
 API_KEY = os.getenv("OPENAQ_API_KEY") 
 API_URL = "https://api.openaq.org/v3/locations"
 
+@task
 def FindSensors(
     COORDINATES: tuple = (-33.4489, -70.6693),  # Default to Plaza de Armas coordinates
     RADIUS_METERS: int = 25000,  # Default to 25km radius around center
