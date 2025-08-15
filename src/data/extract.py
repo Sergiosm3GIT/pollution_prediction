@@ -1,5 +1,5 @@
-from src.API.openAQ_locations import FindSensors
-from src.API.open_AQ_sensors_extractdata import FetchSensorData
+from src.API.locations import FindSensors
+from src.API.measurenments import FetchSensorData
 from prefect import flow, task
 import pandas as pd
 from datetime import datetime
@@ -8,10 +8,10 @@ from datetime import datetime
 def DataExtractionFlow(
     COORDINATES=(-33.4489, -70.6693),  # Default to Plaza de Armas coordinates
     RADIUS_METERS=25000,  # Default to 25km radius around center
-    OUTPUT_FILE_SENSORS="pollution-prediction/data/raw/sensors_metadata.json",
+    OUTPUT_FILE_SENSORS="pollution_prediction/data/raw/sensors_metadata.json",
     start_date="2025-08-01T00:00:00Z",  # Adjust start date as needed
-    end_date="2025-08-02T00:00:00Z",  # Adjust end date as needed
-    output_file_measurements ="pollution-prediction/data/raw/sensors_measurements.parquet"  # Default output file for measurements
+    end_date="2025-08-15T00:00:00Z",  # Adjust end date as needed
+    output_file_measurements ="pollution_prediction/data/raw/sensors_measurements.parquet"  # Default output file for measurements
 ):
     # Extract sensor metadata
     sensors_list = FindSensors(
@@ -29,11 +29,11 @@ def DataExtractionFlow(
 if __name__ == "__main__":
     COORDINATES=(-33.4489, -70.6693) # Default to Plaza de Armas coordinates
     RADIUS_METERS=25000  # Default to 25km radius around center
-    OUTPUT_FILE_SENSORS="pollution-prediction/data/raw/sensors_metadata.json"
-    start_date="2025-01-01T00:00:00Z"  # Adjust start date as needed
-    end_date="2025-08-01T00:00:00Z"  # Adjust end date as needed
-    #OUTPUT_FILE_MEASUREMENTS=f"pollution-prediction/data/raw/sensors_measurements_{datetime.now().strftime('%y%m%d%H%M%S')}.parquet"
-    OUTPUT_FILE_MEASUREMENTS=f"pollution-prediction/data/raw/sensors_measurements_2025_01_08.parquet"
+    OUTPUT_FILE_SENSORS="pollution_prediction/data/raw/sensors_metadata.json"
+    start_date="2025-08-01T01:00:00Z",  # Adjust start date as needed
+    end_date="2025-08-15T00:00:00Z",  # Adjust end date as needed
+    #OUTPUT_FILE_MEASUREMENTS=f"pollution_prediction/data/raw/sensors_measurements_{datetime.now().strftime('%y%m%d%H%M%S')}.parquet"
+    OUTPUT_FILE_MEASUREMENTS=f"pollution_prediction/data/raw/sensors_measurements_2025_0801_0815.parquet"
 
     DataExtractionFlow(
         COORDINATES=COORDINATES,  # Default to Plaza de Armas coordinates

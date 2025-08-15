@@ -6,17 +6,21 @@ import pandas as pd
 from pathlib import Path
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
-from src.API.openAQ_measurenments_structure import flatten_measurement
+from src.API.measurenments_structure import flatten_measurement
 from prefect import flow, task
 
-load_dotenv()
+project_root = Path(__file__).resolve().parent.parent.parent
+dotenv_path = project_root / '.env'
+load_dotenv(dotenv_path=dotenv_path, override=True)
 API_KEY = os.getenv("OPENAQ_API_KEY") 
 URL_BASE = "https://api.openaq.org/v3"
 
-INPUT_FILE = "pollution-prediction/data/raw/sensors_metadata.json"
 os.chdir(Path(__file__).resolve().parent.parent.parent.parent)
-with open(INPUT_FILE, 'r', encoding='utf-8') as f:
-    sensor_data = json.load(f)
+
+def load_sensor_data(input_file):
+    """Load sensor metadata from a JSON file."""
+    with open(input_file, 'r', encoding='utf-8') as f:
+        return json.load(f)
 
 @task(retries=3,retry_delay_seconds=2,log_prints=True)
 def FetchMeasurements(headers,params,API_URL):
@@ -40,7 +44,8 @@ def FetchSensorData(
         start_date="2025-08-01T00:00:00Z",  # Adjust start date as needed
         end_date="2025-08-02T00:00:00Z",  # Adjust end date as needed
         limit=1000,
-        output_file = f"pollution-prediction/data/raw/sensors_measurements_{datetime.now().strftime('%y%m%d%H%M%S')}.parquet",
+        INPUT_FILE="pollution_prediction/data/raw/sensors_metadata.json",
+        output_file = f"pollution_prediction/data/raw/sensors_measurements_{datetime.now().strftime('%y%m%d%H%M%S')}.parquet",
         allowed_locations=[25,45,846,852,967,2845837,2845838],
         allowed_sensors = [9213887,9213897,1047,4445,4489,4533,4549,1044,2271,3190,4099,4100,9213871,9213876,
         9213861,9213880,4643,9213884,9213893,9213881,9213889]
@@ -49,6 +54,7 @@ def FetchSensorData(
         "Accept": "application/json",
         "X-API-Key": API_KEY
     }
+    sensor_data = load_sensor_data(INPUT_FILE)
     df_list = []
     for i, station in enumerate(sensor_data["sensors"]):
         location_id = station.get("id", None)

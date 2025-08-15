@@ -8,7 +8,9 @@ from datetime import datetime
 from dotenv import load_dotenv
 from prefect import flow, task
 
-load_dotenv()
+project_root = Path(__file__).resolve().parent.parent.parent
+dotenv_path = project_root / '.env'
+load_dotenv(dotenv_path=dotenv_path, override=True)
 API_KEY = os.getenv("OPENAQ_API_KEY") 
 API_URL = "https://api.openaq.org/v3/locations"
 
@@ -16,7 +18,8 @@ API_URL = "https://api.openaq.org/v3/locations"
 def FindSensors(
     COORDINATES: tuple = (-33.4489, -70.6693),  # Default to Plaza de Armas coordinates
     RADIUS_METERS: int = 25000,  # Default to 25km radius around center
-    OUTPUT_FILE: str = "pollution-prediction/data/raw/sensors_metadata.json"
+    OUTPUT_FILE: str = "pollution_prediction/data/raw/sensors_metadata.json",
+    OUTPUT_FOLDER: str = "pollution_prediction/data/raw/"
 ):
     headers = {
         "Accept": "application/json",
@@ -68,6 +71,10 @@ def FindSensors(
     }
 
     os.chdir(Path(__file__).resolve().parent.parent.parent.parent)
+    
+    if not os.path.exists(os.path.dirname(OUTPUT_FOLDER)):
+        os.makedirs(os.path.dirname(OUTPUT_FOLDER))
+    
     with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
         json.dump(result, f, indent=2, ensure_ascii=False)
     
@@ -78,7 +85,7 @@ def FindSensors(
 if __name__ == "__main__":
     COORDINATES = (-33.4489, -70.6693)  # Plaza de Armas coordinates
     RADIUS_METERS = 25000  # 25km radius around center
-    OUTPUT_FILE = "pollution-prediction/data/raw/sensors_metadata.json"
+    OUTPUT_FILE = "pollution_prediction/data/raw/sensors_metadata.json"
     FindSensors()
 
 

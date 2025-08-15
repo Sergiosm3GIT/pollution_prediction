@@ -8,9 +8,11 @@ import pandas as pd
 from pathlib import Path
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
-from openAQ_measurenments_structure import flatten_measurement
+from measurenments_structure import flatten_measurement
 
-load_dotenv()
+project_root = Path(__file__).resolve().parent.parent.parent
+dotenv_path = project_root / '.env'
+load_dotenv(dotenv_path=dotenv_path, override=True)
 API_KEY = os.getenv("OPENAQ_API_KEY") 
 URL_BASE = "https://api.openaq.org/v3"
 INPUT_FILE = "pollution-prediction/data/raw/sensors_metadata.json"
