@@ -85,8 +85,8 @@ def FindSensors(
 if __name__ == "__main__":
     COORDINATES = (-33.4489, -70.6693)  # Plaza de Armas coordinates
     RADIUS_METERS = 25000  # 25km radius around center
-    OUTPUT_FILE = "pollution_prediction/data/raw/sensors_metadata.json"
-    FindSensors()
+    OUTPUT_FILE = "data/raw/sensors_metadata.json"
+    FindSensors(COORDINATES = COORDINATES, RADIUS_METERS = RADIUS_METERS, OUTPUT_FILE = OUTPUT_FILE)
 
 
 
