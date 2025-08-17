@@ -179,6 +179,42 @@ def _normalize_units(df: pd.DataFrame) -> pd.DataFrame:
         out.append(grp)
     return pd.concat(out, ignore_index=True) if out else df
 
+def _ensure_date_utc(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Crea/normaliza la columna 'date_utc' a partir de varias posibles columnas
+    de tiempo que puedan venir del extract. No rompe si ya existe.
+    """
+    if "date_utc" in df.columns:
+        return df
+
+    candidates = [
+        "period_datetime_from_utc",
+        "datetime_from_utc",
+        "datetime_to_utc",
+        "utc",
+        "timestamp",
+        "ts",
+    ]
+    for col in candidates:
+        if col in df.columns:
+            df = df.copy()
+            df["date_utc"] = pd.to_datetime(df[col], utc=True, errors="coerce")
+            return df
+
+    # último intento: algunas veces viene como string ISO en 'date' o similar
+    for col in ["date", "time", "datetime"]:
+        if col in df.columns:
+            df = df.copy()
+            df["date_utc"] = pd.to_datetime(df[col], utc=True, errors="coerce")
+            return df
+
+    # Si no encontramos nada, deja rastro para debug
+    print(f"[preprocess] warning: no se encontró columna de tiempo; columnas: {list(df.columns)}")
+    # crea columna vacía para no romper
+    df = df.copy()
+    df["date_utc"] = pd.NaT
+    return df
+
 def _resample_hourly_pivot(df: pd.DataFrame) -> pd.DataFrame:
     # 1) quedarse con parámetros de interés
     df = df[df["parameter"].isin(PARAMETERS)].copy()
@@ -334,7 +370,8 @@ def run_preprocess():
     # 2) limpieza y normalización
     df_qc = _basic_qc(df_raw)
     df_norm = _normalize_units(df_qc)
-
+    df_norm = _ensure_date_utc(df_norm)
+    
     # 3) resample + pivot (tabla limpia por hora)
     df_wide = _resample_hourly_pivot(df_norm)
 
