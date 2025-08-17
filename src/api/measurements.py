@@ -153,6 +153,8 @@ def FetchSensorData(
 if __name__ == "__main__":
     print("Fetching sensor data from OpenAQ...")
     PARAMETERS=["pm25", "pm10","pm1", "no2", "o3", "so2", "co","relativehumidity", "temperature","um003"]
-    output_file = f"data/raw/sensors_measurements_{datetime.now().strftime('%y%m%d%H%M%S')}.parquet"
-    data = FetchSensorData(PARAMETERS = PARAMETERS, output_file=output_file) 
+    start_date= "2025-01-01T00:00:00Z",  
+    end_date= "2025-08-16T00:00:00Z",  
+    output_file = f"data/raw/sensors_measurements_20250101_20250816.parquet"
+    data = FetchSensorData(PARAMETERS = PARAMETERS, start_date = start_date, end_date = end_date, output_file=output_file) 
     
