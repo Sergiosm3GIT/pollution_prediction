@@ -8,7 +8,7 @@ import pandas as pd
 from pathlib import Path
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
-from measurenments_structure import flatten_measurement
+from measurements_structure import flatten_measurement
 
 project_root = Path(__file__).resolve().parent.parent.parent
 dotenv_path = project_root / '.env'

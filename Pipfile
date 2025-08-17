@@ -15,6 +15,9 @@ prefect = "*"
 pyarrow = "*"
 jupyterlab = "*"
 requests = "*"
+gcsfs = "*" 
+fsspec = "*"
+pydantic = "*" 
 
 [dev-packages]
 pytest = "*"
@@ -22,6 +25,8 @@ black = "*"
 flake8 = "*"
 jupyter = "*"
 ipython = "*"
+ruff = "*" 
+pre-commit = "*"
 
 [requires]
 python_version = "3.11"
