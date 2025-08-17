@@ -11,7 +11,7 @@ from prefect import flow
 
 from src.api.locations import FindSensors
 from src.api.measurements import FetchSensorData
-from src.utils.io_generic import build_path, read_json, write_json, write_parquet
+from src.utils.io import build_path, read_json, write_json, write_parquet
 
 UTC = timezone.utc
 
