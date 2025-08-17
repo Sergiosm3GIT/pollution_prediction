@@ -86,7 +86,7 @@ def FetchSensorData(
         location_sensors = len(station['sensors'])
         location_name = station.get('name', 'Unnamed')
         print(f"\nProcessing station {i+1}/ Location {location_id} /  {location_sensors} sensors: {location_name}")
-        if location_id not in allowed_locations:
+        if allowed_locations and location_id not in allowed_locations:
             print(f"Skipping station {location_id}.")
             continue
 
@@ -106,12 +106,12 @@ def FetchSensorData(
         for parameter in available_measurements:
             sensor_id = available_measurements[parameter]
             print(sensor_id)
-            if sensor_id not in allowed_sensors:
+            if allowed_sensors and sensor_id not in allowed_sensors:
                 print(f"Skipping station {sensor_id}.")
                 continue
             
             api_measurements_url = f"{URL_BASE}/sensors/{sensor_id}/measurements"
-            df_sensor_metadata = pd.DataFrame({'sensor_id': sensor_id, 'parameter': parameter, 'location_id': location_id, 'location_name': location_name}, index=[0]) 
+            df_sensor_metadata = pd.DataFrame({'sensor_id': sensor_id, 'parameter_meta': parameter, 'location_id': location_id, 'location_name': location_name}, index=[0]) 
             params = {
                 "datetime_from": start_date,
                 "datetime_to": end_date,

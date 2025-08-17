@@ -1,0 +1,10 @@
+target-version = "py311"
+line-length = 100
+
+[lint]
+select = ["E","F","I","B","UP"]
+ignore = ["E501"]  # dejamos a black manejar longitud si quieres
+
+[format]
+quote-style = "double"
+indent-style = "space"
