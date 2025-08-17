@@ -150,7 +150,7 @@ def DataExtractionFlow():
         },
         "sensors": sensors_list,
     }
-    sensors_key = f"raw/openaq/{CITY}/dt={run_dt}/sensors_metadata.json"
+    sensors_key = f"openaq/{CITY}/dt={run_dt}/sensors_metadata.json"
     sensors_path = _write_json(sensors_doc, sensors_key)
     print(f"[extract] sensors → {sensors_path}")
 
@@ -172,7 +172,7 @@ def DataExtractionFlow():
     # 4) Escritura particionada (append-only)
     #    Nota: aquí mantenemos un único archivo por corrida; si prefieres, separa por parámetro:
     #    raw/openaq/<city>/dt=YYYY-MM-DD/parameter=<p>/...
-    measurements_key = f"raw/openaq/{CITY}/dt={run_dt}/measurements_{run_ts}.parquet"
+    measurements_key = f"openaq/{CITY}/dt={run_dt}/measurements_{run_ts}.parquet"
     out_path = _write_parquet(df, measurements_key)
     print(f"[extract] wrote {len(df)} rows → {out_path}")
 
