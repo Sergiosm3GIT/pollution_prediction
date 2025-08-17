@@ -9,6 +9,8 @@ import numpy as np
 
 from src.utils.io import build_path, write_parquet, read_json, write_json  # helper genérico GCS/local
 import fsspec
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 UTC = timezone.utc
 
@@ -112,17 +114,58 @@ def _list_measurement_files() -> list[str]:
         return [str(p) for p in Path(base).glob("measurements_*.parquet")]
 
 def _load_concat_measurements(files: list[str]) -> pd.DataFrame:
-    dfs = []
-    for p in sorted(files):
-        try:
-            # fuerza pyarrow y deja que gcsfs se encargue de gs://
-            dfs.append(pd.read_parquet(p, engine="pyarrow"))
-        except Exception as e:
-            print(f"[preprocess] warning: no se pudo leer {p}: {e}")
-    if not dfs:
+    """
+    Lee múltiples parquet (locales o GCS) de forma robusta.
+    - Para gs:// usa fsspec + pyarrow.parquet.read_table
+    - Une tablas permitiendo diferencias de esquema (union por nombre)
+    """
+    if not files:
         return pd.DataFrame()
-    # concatena aunque tengan columnas distintas (outer join por columnas)
-    return pd.concat(dfs, ignore_index=True, sort=False)
+
+    tables: list[pa.Table] = []
+
+    # Detecta si son rutas GCS
+    is_gcs = any(str(p).startswith("gs://") for p in files)
+    if is_gcs:
+        fs = fsspec.filesystem("gcs")
+        for p in sorted(files):
+            try:
+                with fs.open(p, "rb") as f:
+                    t = pq.read_table(f)  # lectura robusta con pyarrow
+                tables.append(t)
+            except Exception as e:
+                print(f"[preprocess] warning: no se pudo leer {p} (GCS): {e}")
+    else:
+        # Rutas locales: usa pyarrow igualmente (más tolerante que pandas aquí)
+        for p in sorted(files):
+            try:
+                t = pq.read_table(p)
+                tables.append(t)
+            except Exception as e:
+                print(f"[preprocess] warning: no se pudo leer {p} (local): {e}")
+
+    if not tables:
+        return pd.DataFrame()
+
+    try:
+        # Une permitiendo diferencias de esquema (columnas que aparezcan en unos y no en otros)
+        # pa.concat_tables(promote=True) promueve tipos compatibles; si tu pyarrow es reciente,
+        # puedes usar unify_schemas=True (en versiones más nuevas).
+        combined = pa.concat_tables(tables, promote=True)
+    except Exception as e:
+        print(f"[preprocess] warning: concat_tables falló ({e}); intento fallback por columnas comunes.")
+        # Fallback: intersecta columnas presentes en todos
+        common_cols = set(tables[0].schema.names)
+        for t in tables[1:]:
+            common_cols &= set(t.schema.names)
+        if not common_cols:
+            return pd.DataFrame()
+        tables = [t.select(list(common_cols)) for t in tables]
+        combined = pa.concat_tables(tables, promote=True)
+
+    # Convierte a pandas; dtype por defecto está bien para modelado posterior
+    df = combined.to_pandas(ignore_metadata=True)
+    return df
 
 def _basic_qc(df: pd.DataFrame) -> pd.DataFrame:
     before = len(df)
