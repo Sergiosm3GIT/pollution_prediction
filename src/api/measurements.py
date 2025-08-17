@@ -2,6 +2,7 @@ import os
 import requests
 import json
 import time
+import fsspec
 import pandas as pd
 from pathlib import Path
 from dotenv import load_dotenv
@@ -18,7 +19,7 @@ URL_BASE = "https://api.openaq.org/v3"
 
 def load_sensor_data(input_file: str):
     """Load sensor metadata from a JSON file."""
-    with open(input_file, 'r', encoding='utf-8') as f:
+    with fsspec.open(input_file, 'r', encoding='utf-8') as f:
         return json.load(f)
 
 def _iso_now():
