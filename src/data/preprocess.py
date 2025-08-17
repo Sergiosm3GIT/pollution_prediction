@@ -87,7 +87,7 @@ def _features_partition_path() -> str:
     return str(Path(rel))
 
 def _list_measurement_files() -> list[str]:
-    base = _raw_partition_path()  # ej: gs://bucket/openaq/Santiago/dt=2025-08-17
+    base = _raw_partition_path()  # ej: gs://pollution-data-mlops/openaq/Santiago/dt=2025-08-17
     pattern = f"{base}/measurements_*.parquet"
     print(f"[preprocess] GCS_BUCKET={GCS_BUCKET!r}")
     print(f"[preprocess] base={base}")
@@ -96,14 +96,17 @@ def _list_measurement_files() -> list[str]:
     if base.startswith("gs://"):
         fs = fsspec.filesystem("gcs")
         try:
-            files = fs.glob(pattern)
+            files = fs.glob(pattern)  # típicamente ['bucket/path/file.parquet', ...]
+            # Normaliza: si no trae 'gs://', prepéndelo
+            files = [f if f.startswith("gs://") else f"gs://{f}" for f in files]
             print(f"[preprocess] glob found: {files}")
             if not files:
-                # si el glob vino vacío, listamos el prefijo para ver qué hay
                 parent = base.rstrip("/")
                 try:
                     listing = fs.ls(parent)
-                    print(f"[preprocess] ls({parent}) → {[e.get('name', e) for e in listing]}")
+                    listing = [e.get("name", e) for e in listing]
+                    listing = [n if n.startswith("gs://") else f"gs://{n}" for n in listing]
+                    print(f"[preprocess] ls({parent}) → {listing}")
                 except Exception as e:
                     print(f"[preprocess] warning: ls({parent}) falló: {e}")
             return files
@@ -113,59 +116,40 @@ def _list_measurement_files() -> list[str]:
     else:
         return [str(p) for p in Path(base).glob("measurements_*.parquet")]
 
+
 def _load_concat_measurements(files: list[str]) -> pd.DataFrame:
-    """
-    Lee múltiples parquet (locales o GCS) de forma robusta.
-    - Para gs:// usa fsspec + pyarrow.parquet.read_table
-    - Une tablas permitiendo diferencias de esquema (union por nombre)
-    """
     if not files:
         return pd.DataFrame()
 
     tables: list[pa.Table] = []
-
-    # Detecta si son rutas GCS
-    is_gcs = any(str(p).startswith("gs://") for p in files)
-    if is_gcs:
-        fs = fsspec.filesystem("gcs")
-        for p in sorted(files):
-            try:
+    for p in sorted(files):
+        try:
+            if p.startswith("gs://"):
+                fs = fsspec.filesystem("gcs")
                 with fs.open(p, "rb") as f:
-                    t = pq.read_table(f)  # lectura robusta con pyarrow
-                tables.append(t)
-            except Exception as e:
-                print(f"[preprocess] warning: no se pudo leer {p} (GCS): {e}")
-    else:
-        # Rutas locales: usa pyarrow igualmente (más tolerante que pandas aquí)
-        for p in sorted(files):
-            try:
+                    t = pq.read_table(f)
+            else:
                 t = pq.read_table(p)
-                tables.append(t)
-            except Exception as e:
-                print(f"[preprocess] warning: no se pudo leer {p} (local): {e}")
+            tables.append(t)
+        except Exception as e:
+            print(f"[preprocess] warning: no se pudo leer {p}: {e}")
 
     if not tables:
         return pd.DataFrame()
 
     try:
-        # Une permitiendo diferencias de esquema (columnas que aparezcan en unos y no en otros)
-        # pa.concat_tables(promote=True) promueve tipos compatibles; si tu pyarrow es reciente,
-        # puedes usar unify_schemas=True (en versiones más nuevas).
         combined = pa.concat_tables(tables, promote=True)
     except Exception as e:
-        print(f"[preprocess] warning: concat_tables falló ({e}); intento fallback por columnas comunes.")
-        # Fallback: intersecta columnas presentes en todos
-        common_cols = set(tables[0].schema.names)
+        print(f"[preprocess] warning: concat_tables falló ({e}); fallback a columnas comunes.")
+        common = set(tables[0].schema.names)
         for t in tables[1:]:
-            common_cols &= set(t.schema.names)
-        if not common_cols:
+            common &= set(t.schema.names)
+        if not common:
             return pd.DataFrame()
-        tables = [t.select(list(common_cols)) for t in tables]
+        tables = [t.select(list(common)) for t in tables]
         combined = pa.concat_tables(tables, promote=True)
 
-    # Convierte a pandas; dtype por defecto está bien para modelado posterior
-    df = combined.to_pandas(ignore_metadata=True)
-    return df
+    return combined.to_pandas(ignore_metadata=True)
 
 def _basic_qc(df: pd.DataFrame) -> pd.DataFrame:
     before = len(df)
