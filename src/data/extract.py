@@ -11,6 +11,7 @@ from prefect import flow
 
 from src.api.locations import FindSensors
 from src.api.measurements import FetchSensorData
+from src.utils.io_generic import build_path, read_json, write_json, write_parquet
 
 UTC = timezone.utc
 
@@ -40,37 +41,37 @@ BOOTSTRAP_HOURS = int(os.getenv("BOOTSTRAP_HOURS", "24"))  # si no hay estado pr
 # Local fallbacks (cuando no hay GCS)
 LOCAL_RAW_DIR = Path("data/raw")
 
+
 def _now_utc() -> datetime:
     return datetime.now(UTC)
+
 
 def _run_date_str(now: datetime) -> str:
     return now.strftime("%Y-%m-%d")
 
+
 def _run_ts_str(now: datetime) -> str:
     return now.strftime("%Y%m%dT%H%M%S")
+
 
 def _coordinates_tuple() -> tuple[float, float]:
     lat_s, lon_s = COORDINATES_ENV.split(",")
     return float(lat_s), float(lon_s)
+
 
 # ----------------------------
 # Checkpoint en GCS o Local
 # ----------------------------
 def _state_path() -> str:
     """Ruta del checkpoint (GCS si hay bucket, si no local)."""
-    if GCS_BUCKET:
-        return f"gs://{GCS_BUCKET}/{STATE_BLOB}"
-    else:
-        p = Path(STATE_BLOB)
-        p.parent.mkdir(parents=True, exist_ok=True)
-        return str(p)
+    return build_path(STATE_BLOB, GCS_BUCKET or None)
+
 
 def load_state() -> datetime:
     """Devuelve last_success_utc o un valor por defecto (now-BOOTSTRAP_HOURS)."""
     path = _state_path()
     try:
-        with fsspec.open(path, "r") as f:
-            data = json.load(f)
+        data = read_json(path)
         ts = data.get("last_success_utc")
         return datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone(UTC)
     except FileNotFoundError:
@@ -79,39 +80,34 @@ def load_state() -> datetime:
         # Si el estado está corrupto, arrancamos con bootstrap
         return _now_utc() - timedelta(hours=BOOTSTRAP_HOURS)
 
+
 def save_state(last_success_utc: datetime) -> None:
     payload = {
         "last_success_utc": last_success_utc.astimezone(UTC).isoformat().replace("+00:00", "Z")
     }
     path = _state_path()
-    with fsspec.open(path, "w") as f:
-        json.dump(payload, f)
+    write_json(payload, path)
+
 
 # ----------------------------
 # Escritura flexible (GCS o local)
 # ----------------------------
 def _write_json(obj, rel_key: str) -> str:
     if GCS_BUCKET:
-        path = f"gs://{GCS_BUCKET}/{rel_key}"
-        with fsspec.open(path, "w") as f:
-            json.dump(obj, f, ensure_ascii=False, indent=2)
-        return path
+        path = build_path(rel_key, GCS_BUCKET)
+        return write_json(obj, path)
     else:
         out = LOCAL_RAW_DIR / rel_key
-        out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
-        return str(out)
+        return write_json(obj, str(out))
+
 
 def _write_parquet(df: pd.DataFrame, rel_key: str) -> str:
     if GCS_BUCKET:
-        path = f"gs://{GCS_BUCKET}/{rel_key}"
-        df.to_parquet(path, index=False)
-        return path
+        path = build_path(rel_key, GCS_BUCKET)
+        return write_parquet(df, path)
     else:
         out = LOCAL_RAW_DIR / rel_key
-        out.parent.mkdir(parents=True, exist_ok=True)
-        df.to_parquet(out, index=False)
-        return str(out)
+        return write_parquet(df, str(out))
 
 
 # ----------------------------
@@ -132,11 +128,11 @@ def DataExtractionFlow():
     print(f"[extract] parameters={PARAMETERS}")
     print(f"[extract] bucket={'gs://'+GCS_BUCKET if GCS_BUCKET else '(local)'}")
 
-    # 2) Sensores (puedes mover a un job diario si no cambian mucho)
-    sensors_list = FindSensors.fn(  # .fn para ejecutar la función del @task sin task-run
+    # 2) Sensores
+    sensors_list = FindSensors.fn(
         COORDINATES=_coordinates_tuple(),
         RADIUS_METERS=RADIUS_M,
-        OUTPUT_FILE=None,                 # no guardamos local desde la task
+        OUTPUT_FILE=None,
         LOCATION_LABEL=f"{CITY}, CL",
         API_KEY_OVERRIDE=os.getenv("OPENAQ_API_KEY", ""),
     )
@@ -160,18 +156,16 @@ def DataExtractionFlow():
         start_date=start_date,
         end_date=end_date,
         limit=1000,
-        INPUT_FILE=sensors_path,                 
-        output_file=None,                 # guardamos nosotros de forma particionada
+        INPUT_FILE=sensors_path,
+        output_file=None,  # guardamos nosotros
         API_KEY_OVERRIDE=os.getenv("OPENAQ_API_KEY", ""),
     )
 
     if df is None or df.empty:
         print("[extract] no data fetched; keeping previous checkpoint")
         return
-    
+
     # 4) Escritura particionada (append-only)
-    #    Nota: aquí mantenemos un único archivo por corrida; si prefieres, separa por parámetro:
-    #    raw/openaq/<city>/dt=YYYY-MM-DD/parameter=<p>/...
     measurements_key = f"openaq/{CITY}/dt={run_dt}/measurements_{run_ts}.parquet"
     out_path = _write_parquet(df, measurements_key)
     print(f"[extract] wrote {len(df)} rows → {out_path}")
@@ -180,6 +174,6 @@ def DataExtractionFlow():
     save_state(now)
     print(f"[extract] state updated to {now.isoformat().replace('+00:00','Z')}")
 
-# Ejecutar localmente
+
 if __name__ == "__main__":
     DataExtractionFlow()
