@@ -282,9 +282,23 @@ def _add_calendar_features(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 def _add_lags_and_rolls(df: pd.DataFrame) -> pd.DataFrame:
-    out = df.set_index(pd.to_datetime(df["timestamp_utc"], utc=True)).copy()
+    # Si viene vacío, salimos rápido
+    if df is None or df.empty:
+        return df
 
-    # Lags para principales parámetros
+    # Asegura y limpia el timestamp
+    ts = pd.to_datetime(df["timestamp_utc"], utc=True, errors="coerce")
+    mask = ~ts.isna()
+    if not mask.any():
+        # no hay timestamps válidos; devolvemos igual (sin lags)
+        return df.copy()
+
+    out = df.loc[mask].copy()
+
+    # Trabajamos con un índice temporal pero SIN crear columna 'index'
+    out.index = ts.loc[mask]
+
+    # Lags para principales parámetros (solo si existen)
     lag_params = ["pm25", "no2", "temperature", "relativehumidity"]
     for p in lag_params:
         if p in out.columns:
@@ -300,9 +314,12 @@ def _add_lags_and_rolls(df: pd.DataFrame) -> pd.DataFrame:
         for W in [3]:
             out[f"no2_roll{W}_mean"] = out["no2"].rolling(W, min_periods=1).mean()
 
-    out.reset_index(drop=False, inplace=True)
-    out.rename(columns={"index": "timestamp_utc"}, inplace=True)
+    # En vez de reset_index(drop=False), asignamos explícitamente y luego reseteamos
+    out["timestamp_utc"] = out.index
+    out.reset_index(drop=True, inplace=True)
+
     return out
+
 
 def _add_target(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
@@ -371,7 +388,7 @@ def run_preprocess():
     df_qc = _basic_qc(df_raw)
     df_norm = _normalize_units(df_qc)
     df_norm = _ensure_date_utc(df_norm)
-    
+
     # 3) resample + pivot (tabla limpia por hora)
     df_wide = _resample_hourly_pivot(df_norm)
 
