@@ -19,6 +19,9 @@ pydantic = "*"
 google-cloud-storage = "*"
 gcsfs = "*"
 pyarrow = "*"
+ipykernel = "*"
+seaborn = "*"
+statsmodels = "*"
 
 [dev-packages]
 pytest = "*"
